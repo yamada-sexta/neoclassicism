@@ -1,0 +1,25 @@
+{
+  "name": "neoclassism",
+  "version": "1.0.0",
+  "description": "Basic HTML 3D render",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "esbuild watch": "esbuild --bundle --sourcemap --watch --outfile=index.js ./Scripts/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NaNnoda/Neoclassicism.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/NaNnoda/Neoclassicism/issues"
+  },
+  "homepage": "https://github.com/NaNnoda/Neoclassicism#readme",
+  "dependencies": {
+    "@ffmpeg/core": "^0.11.0",
+    "@ffmpeg/ffmpeg": "^0.11.6",
+    "esbuild": "^0.15.13"
+  }
+}
