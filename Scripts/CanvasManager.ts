@@ -16,4 +16,13 @@ export class CanvasManager {
         this.ctx.fillStyle = "red";
         this.ctx.fillRect(0, 0, 100, 100);
     }
+
+    drawPixelArray(array: number[][]) {
+        for (let i = 0; i < array.length; i++) {
+            for (let j = 0; j < array[i].length; j++) {
+                this.ctx.fillStyle = "rgb(" + array[i][j] + "," + array[i][j] + "," + array[i][j] + ")";
+                this.ctx.fillRect(i, j, 1, 1);
+            }
+        }
+    }
 }
