@@ -27,6 +27,11 @@
   // Scripts/Consts.ts
   var canvas = document.getElementById("mainCanvas");
   var ctx = canvas.getContext("2d");
+  var width = canvas.width;
+  var height = canvas.height;
+  var centerX = width / 2;
+  var centerY = height / 2;
+  var aspectRatio = width / height;
 
   // Scripts/Math/Random.ts
   var _Random = class {
@@ -58,11 +63,11 @@
 
   // Scripts/Math/NoiseMap.ts
   var NoiseMap = class {
-    constructor(width, height, max = 256, min = 0, isFloat = false) {
+    constructor(width2, height2, max = 256, min = 0, isFloat = false) {
       this.array = [];
-      for (let i = 0; i < width; i++) {
+      for (let i = 0; i < width2; i++) {
         this.array.push([]);
-        for (let j = 0; j < height; j++) {
+        for (let j = 0; j < height2; j++) {
           this.array[i].push(Random.instance.next());
         }
       }
