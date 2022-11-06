@@ -1,4 +1,4 @@
-import {clearCanvas, drawBackground} from "./Drawer";
+import {clearCanvas, drawBackground, drawHermitCurve} from "./Drawer";
 import {OrthographicProjection} from "./Object3Ds/OrthographicProjection";
 import {mat4} from "gl-matrix";
 import {Camera3D} from "./Object3Ds/Camera3D";
@@ -58,7 +58,7 @@ export function frameUpdate() {
     // console.log("frameUpdate");
     let background = `hsl(${(colorFrame / 10) % (360)}, 50%, 50%)`;
     if (playingDeadAnimation) {
-        let saturation =150- Math.min(100, deadAnimation / deadAnimationDuration * 100);
+        let saturation = 150 - Math.min(100, deadAnimation / deadAnimationDuration * 100);
         background = `hsl(${(0) % (360)}, ${saturation}%, 50%)`;
         deadAnimation++;
         if (deadAnimation > deadAnimationDuration) {
@@ -89,6 +89,12 @@ export function frameUpdate() {
     let cameraTransform = camera.transformTo(projectionTransform);
     let worldTransform = world.transformTo(cameraTransform);
 
+    let curveTransform = mat4.create();
+    mat4.translate(curveTransform, curveTransform, [0, 0, 0]);
+    mat4.scale(curveTransform, curveTransform, [1, 1, 1]);
+    mat4.multiply(curveTransform, worldTransform, curveTransform);
+
+
     let random = Random.instance;
     random.setSeed(0);
 
@@ -98,7 +104,7 @@ export function frameUpdate() {
 
     let pos = slider1.valueAsNumber / 100 * 2 - 1;
 
-    function getRandPrism(){
+    function getRandPrism() {
         let ctlIndex = random.nextInt(4);
         if (ctlIndex == 0) {
             return TriangularPrism.createRegularPrism([pos, randomVal(), randomVal()], random.nextInt(3) + 1)
@@ -128,8 +134,20 @@ export function frameUpdate() {
         object.rotation += frame / 100 + i;
         object.render(camera)
     }
+    mainCtx.strokeStyle = "white";
 
-    mainCtx.lineWidth = 0.0003/wheelOffset.value ;
+    function drawRandomCurve() {
+        let curve = [];
+        for (let i = 0; i < 100; i++) {
+            curve.push([randomVal(), randomVal(), randomVal()]);
+        }
+        drawHermitCurve(curve, curveTransform);
+    }
+
+    drawRandomCurve();
+
+
+    mainCtx.lineWidth = 0.0003 / wheelOffset.value;
 
     frameLog(`projectionTransform: \n${mat4ToString(projectionTransform)}`);
     frameLog(`cameraTransform: \n${mat4ToString(cameraTransform)}`);
@@ -141,9 +159,10 @@ export function onWheel(e: WheelEvent) {
     console.log("onWheel");
     console.log(e);
 
-    wheelOffset.moveTowards( e.deltaY /2000000);
+    wheelOffset.moveTowards(e.deltaY / 2000000);
 
 }
+
 export function onKeyDow(e: KeyboardEvent) {
     console.log("onKeyDown");
     console.log(e);

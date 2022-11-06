@@ -1743,6 +1743,44 @@
     mainCtx.fill();
     mainCtx.stroke();
   }
+  function drawLongLine3D(points, transformMatrix) {
+    mainCtx.beginPath();
+    moveToTx(points[0], transformMatrix, mainCtx);
+    for (let i = 1; i < points.length; i++) {
+      lineToTx(points[i], transformMatrix, mainCtx);
+    }
+    mainCtx.stroke();
+  }
+  function drawHermitCurve(controls, transformMatrix, ratio = 1) {
+    let step = 0.01;
+    function getPoints(controls2, step2, hermitPoints) {
+      if (controls2.length < 4) {
+        return;
+      }
+      let p0 = controls2[0];
+      let p1 = controls2[1];
+      let p2 = controls2[2];
+      let p3 = controls2[3];
+      let t = 0;
+      while (t <= 1) {
+        let p = vec3_exports.create();
+        let t2 = t * t;
+        let t3 = t2 * t;
+        vec3_exports.scaleAndAdd(p, p, p0, 2 * t3 - 3 * t2 + 1);
+        vec3_exports.scaleAndAdd(p, p, p1, t3 - 2 * t2 + t);
+        vec3_exports.scaleAndAdd(p, p, p2, -2 * t3 + 3 * t2);
+        vec3_exports.scaleAndAdd(p, p, p3, t3 - t2);
+        hermitPoints.push(p);
+        t += step2;
+      }
+    }
+    let end = controls.length / 4;
+    for (let i = 0; i < end; i++) {
+      let hermitPoints = [];
+      getPoints(controls.slice(i * 4, i * 4 + 4), step, hermitPoints);
+      drawLongLine3D(hermitPoints, transformMatrix);
+    }
+  }
 
   // Scripts/Object3Ds/Camera3D.ts
   var Camera3D = class {
@@ -2626,6 +2664,10 @@
     let projectionTransform = projection.transformTo(viewport);
     let cameraTransform = camera.transformTo(projectionTransform);
     let worldTransform = world.transformTo(cameraTransform);
+    let curveTransform = mat4_exports.create();
+    mat4_exports.translate(curveTransform, curveTransform, [0, 0, 0]);
+    mat4_exports.scale(curveTransform, curveTransform, [1, 1, 1]);
+    mat4_exports.multiply(curveTransform, worldTransform, curveTransform);
     let random3 = Random.instance;
     random3.setSeed(0);
     function randomVal() {
@@ -2660,6 +2702,15 @@
       object.rotation += frame / 100 + i;
       object.render(camera);
     }
+    mainCtx.strokeStyle = "white";
+    function drawRandomCurve() {
+      let curve = [];
+      for (let i = 0; i < 100; i++) {
+        curve.push([randomVal(), randomVal(), randomVal()]);
+      }
+      drawHermitCurve(curve, curveTransform);
+    }
+    drawRandomCurve();
     mainCtx.lineWidth = 3e-4 / wheelOffset.value;
     frameLog(`projectionTransform: 
 ${mat4ToString(projectionTransform)}`);

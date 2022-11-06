@@ -55,6 +55,7 @@ export function lineToTx(loc: vec3, Tx: mat4, context: CanvasRenderingContext2D)
     vec3.transformMat4(res, loc, Tx);
     context.lineTo(res[0], res[1]);
 }
+
 export function moveToTx(loc: vec3, Tx: mat4, context: CanvasRenderingContext2D) {
     let res = vec3.create();
     vec3.transformMat4(res, loc, Tx);
@@ -103,6 +104,34 @@ export function drawLongLine3D(points: vec3[], transformMatrix: mat4) {
     mainCtx.stroke();
 }
 
-export function getHermitCurve3D(control1:vec3, control2:vec3, ):vec3[]{
-        
+export function drawHermitCurve(controls: vec3[], transformMatrix: mat4, ratio: number = 1) {
+    let step = 0.01;
+    function getPoints(controls, step, hermitPoints: vec3[]) {
+        if (controls.length < 4) {
+            return;
+        }
+        let p0 = controls[0];
+        let p1 = controls[1];
+        let p2 = controls[2];
+        let p3 = controls[3];
+        let t = 0;
+        while (t <= 1) {
+            let p = vec3.create();
+            let t2 = t * t;
+            let t3 = t2 * t;
+            vec3.scaleAndAdd(p, p, p0, 2 * t3 - 3 * t2 + 1);
+            vec3.scaleAndAdd(p, p, p1, t3 - 2 * t2 + t);
+            vec3.scaleAndAdd(p, p, p2, -2 * t3 + 3 * t2);
+            vec3.scaleAndAdd(p, p, p3, t3 - t2);
+            hermitPoints.push(p);
+            t += step;
+        }
+    }
+
+    let end = controls.length / 4;
+    for (let i = 0; i < end; i++) {
+        let hermitPoints: vec3[] = [];
+        getPoints(controls.slice(i * 4, i * 4 + 4), step, hermitPoints);
+        drawLongLine3D(hermitPoints, transformMatrix);
+    }
 }
