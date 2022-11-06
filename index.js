@@ -1664,20 +1664,38 @@
   mainCanvas.width = width;
   var aspectRatio = height / width;
   var scoreText = createText("score", "Score: 0");
-  var slider1 = createSliders("1");
+  scoreText.style.display = "none";
+  var startBtn = createButton("startBtn", "Start", () => {
+    startBtn.style.display = "none";
+    onStart();
+  });
+  var descriptionText = createText(
+    "description",
+    `
+    How to play:
+    - Use the arrow keys/WASD to move the player(green pixel)
+    - Collect as much coins (yellow pixel) as possible
+    - Avoid danger zone! (red area)
+Also try:
+- Use left/right/middle key of the mouse ot drag the canvas or use sliders to change the camera.
+`
+  );
+  var prismPos = createSliders("prismPos");
+  var curveSize = createSliders("curveSize", 0.3, -2, 2, 1e-3);
   var targetX = createSliders("targetX", 0);
   var targetY = createSliders("targetY", 0);
-  var targetZ = createSliders("targetZ");
-  var eyeX = createSliders("eyeX", 180);
-  var eyeY = createSliders("eyeY", 128);
-  var eyeZ = createSliders("eyeZ", -124);
+  var targetZ = createSliders("targetZ", 0);
+  var eyeX = createSliders("eyeX", 68);
+  var eyeY = createSliders("eyeY", 100);
+  var eyeZ = createSliders("eyeZ", 0);
   var upX = createSliders("upX", 0);
   var upY = createSliders("upY", 1);
   var upZ = createSliders("upZ", 0);
-  var worldX = createSliders("worldX");
-  var worldY = createSliders("worldY", -25);
-  function createSliders(id, defaultVal = 0, min2 = -200, max2 = 200) {
+  var worldX = createSliders("worldX", -19);
+  var worldY = createSliders("worldY", -17);
+  function createSliders(id, defaultVal = 0, min2 = -200, max2 = 200, step = 0.01) {
     let slider = document.createElement("input");
+    slider.step = step.toString();
     slider.type = "range";
     slider.min = min2.toString();
     slider.max = max2.toString();
@@ -1695,10 +1713,22 @@
     document.body.appendChild(sliderDiv);
     return slider;
   }
-  function createText(id, text) {
+  function createButton(id, text, callback) {
+    let button = document.createElement("button");
+    button.id = id;
+    button.innerText = text;
+    button.onclick = callback;
+    document.body.appendChild(button);
+    return button;
+  }
+  function createText(id, ...lines) {
     let textDiv = document.createElement("div");
     textDiv.id = id;
-    textDiv.innerText = text;
+    for (let line of lines) {
+      let text = document.createElement("p");
+      text.innerText = line;
+      textDiv.appendChild(text);
+    }
     document.body.appendChild(textDiv);
     return textDiv;
   }
@@ -1965,12 +1995,10 @@
         let dot2 = vec3_exports.dot(normals[i], camera.direction);
         dots.push(dot2);
       }
-      frameLog(`dots: ${dots}`);
-      let center1 = getCenter(triangles[0]);
-      let center2 = getCenter(triangles[1]);
-      let center3 = getCenter(triangles[2]);
-      let center4 = getCenter(triangles[3]);
-      let centers = [center1, center2, center3, center4];
+      let centers = [];
+      for (let i = 0; i < triangles.length; i++) {
+        centers.push(getCenter(triangles[i]));
+      }
       let distances = centers.map((center) => vec3_exports.distance(center, camera.position));
       function setColor(dotVal) {
         let color = 255 - Math.abs(dotVal) * 125;
@@ -1992,8 +2020,10 @@
         return -(b.distance - a.distance);
       });
       for (let i = 0; i < 4; i++) {
-        setColor(sorted[i].dot);
+        let color = i * 50;
+        mainCtx.fillStyle = `rgb(${color + 50}, ${color + 50}, ${color})`;
         let currTriangle = triangles[sorted[i].index];
+        frameLog(`currIndex: ${sorted[i].index}`);
         drawTriangle3D(currTriangle[0], currTriangle[1], currTriangle[2], m);
       }
     }
@@ -2482,7 +2512,7 @@
       this.updateChildren();
       this.updateLogic();
       this.drawChildren();
-      if (this.updateCount % this.turnNumber == 0) {
+      if (this.updateCount % 50 == 0) {
         this.zones.push(DangerZone.createRandom(this.cols, this.rows));
       }
       if (this.updateCount % 300 == 0) {
@@ -2498,7 +2528,7 @@
     constructor(x, y) {
       this.x = x;
       this.y = y;
-      this.vanishTime = 100;
+      this.vanishTime = 200;
       this.updateCount = 0;
       this.activated = true;
       this._blinkState = false;
@@ -2573,11 +2603,17 @@
     static createRandom(cols2, rows2) {
       let x = Math.floor(Math.random() * cols2);
       let y = Math.floor(Math.random() * rows2);
-      let w = Math.floor(Math.random() * 10);
+      let w = Math.floor(Math.random() * cols2 - 1);
+      if (w < 3) {
+        w = 3;
+      }
       if (w > cols2 - x) {
         w = cols2 - x;
       }
-      let h = Math.floor(Math.random() * 10);
+      let h = Math.floor(Math.random() * rows2 - 1);
+      if (h < 3) {
+        h = 3;
+      }
       if (h > rows2 - y) {
         h = rows2 - y;
       }
@@ -2619,7 +2655,7 @@
   // Scripts/Events.ts
   var frame = 0;
   var colorFrame = 0;
-  var wheelOffset = new SmoothNumber(1e-3, 0.96);
+  var wheelOffset = new SmoothNumber(2e-3, 0.96);
   var playingDeadAnimation = false;
   var deadAnimation = 0;
   var deadAnimationDuration = 60;
@@ -2636,10 +2672,10 @@
     game2.onGameEnd = onGameEnd;
     return game2;
   }
+  var isPlaying = false;
   function frameUpdate() {
     frame++;
     colorFrame++;
-    gameGrid.update();
     let background = `hsl(${colorFrame / 10 % 360}, 50%, 50%)`;
     if (playingDeadAnimation) {
       let saturation = 150 - Math.min(100, deadAnimation / deadAnimationDuration * 100);
@@ -2673,7 +2709,7 @@
     function randomVal() {
       return random3.nextFloat() * 2 - 1;
     }
-    let pos = slider1.valueAsNumber / 100 * 2 - 1;
+    let pos = prismPos.valueAsNumber / 100 * 2 - 1;
     function getRandPrism() {
       let ctlIndex = random3.nextInt(4);
       if (ctlIndex == 0) {
@@ -2696,20 +2732,27 @@
       getRandPrism(),
       grid
     ];
+    if (isPlaying) {
+      gameGrid.update();
+    }
     for (let i = 0; i < objects.length; i++) {
       let object = objects[i];
       object.setWorld(world);
       object.rotation += frame / 100 + i;
       object.render(camera);
     }
-    mainCtx.strokeStyle = "white";
     function drawRandomCurve() {
+      mainCtx.strokeStyle = `hsla(${random3.nextInt(255)}, 20%, 80% , 0.5)`;
+      mainCtx.lineWidth = 0.01 / wheelOffset.value;
       let curve = [];
       for (let i = 0; i < 100; i++) {
-        curve.push([randomVal(), randomVal(), randomVal()]);
+        let size = curveSize.valueAsNumber;
+        curve.push([randomVal() * size, randomVal() * size, randomVal() * size]);
       }
       drawHermitCurve(curve, curveTransform);
     }
+    drawRandomCurve();
+    drawRandomCurve();
     drawRandomCurve();
     mainCtx.lineWidth = 3e-4 / wheelOffset.value;
     frameLog(`projectionTransform: 
@@ -2720,8 +2763,6 @@ ${mat4ToString(cameraTransform)}`);
 ${mat4ToString(worldTransform)}`);
   }
   function onWheel(e) {
-    console.log("onWheel");
-    console.log(e);
     wheelOffset.moveTowards(e.deltaY / 2e6);
   }
   function onKeyDow(e) {
@@ -2742,8 +2783,37 @@ ${mat4ToString(worldTransform)}`);
   }
   function onGameEnd() {
     console.log("onGameEnd");
+    scoreText.innerText = `Final Score: ${gameGrid.player.coins}`;
     playingDeadAnimation = true;
     gameGrid = getGame();
+    isPlaying = false;
+    startBtn.style.display = "block";
+    startBtn.innerText = "Restart";
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        grid.setPixel(i, j, "white");
+      }
+    }
+  }
+  function onDrag(event, lastPos2, pos) {
+    if (event.buttons === 4) {
+      eyeZ.valueAsNumber += pos[0] - lastPos2[0];
+      eyeX.valueAsNumber += pos[1] - lastPos2[1];
+    }
+    if (event.buttons === 2) {
+      targetZ.valueAsNumber -= (pos[0] - lastPos2[0]) / 2;
+      targetX.valueAsNumber += (pos[1] - lastPos2[1]) / 2;
+    }
+    if (event.buttons === 1) {
+      worldY.valueAsNumber -= (pos[0] - lastPos2[0]) / 5;
+      worldX.valueAsNumber += (pos[1] - lastPos2[1]) / 5;
+    }
+  }
+  function onStart() {
+    console.log("onStart");
+    scoreText.style.display = "block";
+    gameGrid = getGame();
+    isPlaying = true;
   }
 
   // Scripts/Init.ts
@@ -2751,13 +2821,36 @@ ${mat4ToString(worldTransform)}`);
     frameUpdate();
     window.requestAnimationFrame(runFrameUpdate);
   }
+  var dragging = false;
+  var lastPos = null;
   function initEvents() {
     runFrameUpdate();
     mainCanvas.onwheel = (e) => {
+      e.preventDefault();
       onWheel(e);
     };
     window.onkeydown = (e) => {
+      e.preventDefault();
       onKeyDow(e);
+    };
+    mainCanvas.onpointerdown = (e) => {
+      e.preventDefault();
+      dragging = true;
+      lastPos = [e.clientX, e.clientY];
+    };
+    mainCanvas.onpointerup = (e) => {
+      e.preventDefault();
+      dragging = false;
+      lastPos = null;
+    };
+    mainCanvas.onpointermove = (e) => {
+      e.preventDefault();
+      if (dragging) {
+        if (lastPos != null) {
+          onDrag(e, lastPos, [e.clientX, e.clientY]);
+        }
+      }
+      lastPos = [e.clientX, e.clientY];
     };
   }
   function initAll() {

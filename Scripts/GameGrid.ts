@@ -117,7 +117,7 @@ export class GameGrid {
         this.updateLogic();
         this.drawChildren();
 
-        if (this.updateCount % this.turnNumber == 0) {
+        if (this.updateCount % 50 == 0) {
             this.zones.push(DangerZone.createRandom(this.cols, this.rows));
 
         }
@@ -133,7 +133,7 @@ export class GameGrid {
 }
 
 class Coin {
-    vanishTime = 100;
+    vanishTime = 200;
     updateCount = 0;
 
     public static createRandom(cols: number, rows: number): Coin {
@@ -159,7 +159,7 @@ class Coin {
         if (!this.activated) {
             return;
         }
-        if (this.updateCount > this.vanishTime ) {
+        if (this.updateCount > this.vanishTime) {
             this.activated = false;
         }
 
@@ -223,11 +223,18 @@ class DangerZone extends Zone {
     static createRandom(cols: number, rows: number): DangerZone {
         let x = Math.floor(Math.random() * cols);
         let y = Math.floor(Math.random() * rows);
-        let w = Math.floor(Math.random() * 10);
+
+        let w = Math.floor(Math.random() * cols -1);
+        if (w < 3) {
+            w = 3;
+        }
         if (w > cols - x) {
             w = cols - x;
         }
-        let h = Math.floor(Math.random() * 10);
+        let h = Math.floor(Math.random() * rows -1);
+        if (h < 3) {
+            h = 3;
+        }
         if (h > rows - y) {
             h = rows - y;
         }

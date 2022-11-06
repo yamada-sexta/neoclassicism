@@ -106,19 +106,17 @@ export class TriangularPrism implements IVisible3D {
         let triangles = [[p1, p2, p3], [p1, p3, p4], [p1, p4, p2], [p2, p4, p3]];
 
 
+
+
         let dots = [];
         for (let i = 0; i < normals.length; i++) {
             let dot = vec3.dot(normals[i], camera.direction);
             dots.push(dot);
         }
-
-        frameLog(`dots: ${dots}`);
-
-        let center1 = getCenter(triangles[0]);
-        let center2 = getCenter(triangles[1]);
-        let center3 = getCenter(triangles[2]);
-        let center4 = getCenter(triangles[3]);
-        let centers = [center1, center2, center3, center4];
+        let centers = [];
+        for (let i = 0; i < triangles.length; i++) {
+            centers.push(getCenter(triangles[i]));
+        }
         let distances = centers.map(center => vec3.distance(center, camera.position));
 
         function setColor(dotVal: number) {
@@ -141,8 +139,10 @@ export class TriangularPrism implements IVisible3D {
         });
 
         for (let i = 0; i < 4; i++) {
-            setColor(sorted[i].dot);
+            let color = i * 50;
+            mainCtx.fillStyle = `rgb(${color + 50}, ${color + 50}, ${color})`;
             let currTriangle = triangles[sorted[i].index];
+            frameLog(`currIndex: ${sorted[i].index}`);
             drawTriangle3D(currTriangle[0], currTriangle[1], currTriangle[2], m);
         }
     }
