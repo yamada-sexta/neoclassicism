@@ -5,7 +5,7 @@ export class World3D {
 
     _transformMatrix: mat4 = mat4.create();
 
-    constructor(scale: number = 10000) {
+    constructor(scale: number = 10) {
         this._scale = scale;
         let m = mat4.create();
         mat4.scale(m, m, [scale, scale, scale]);
@@ -25,5 +25,18 @@ export class World3D {
         let v = vec3.create();
         vec3.transformMat4(v, p, m);
         return v;
+    }
+
+    move(x: number, y: number, z: number): mat4 {
+        let m = mat4.create();
+        mat4.translate(m, m, [x, y, z]);
+        return this.transformTo(m);
+    }
+
+    scale(val: number): mat4 {
+        let m = mat4.create();
+        mat4.scale(m, m, [val, val, val]);
+        return this.transformTo(m);
+
     }
 }

@@ -1663,8 +1663,45 @@
   mainCanvas.height = height;
   mainCanvas.width = width;
   var aspectRatio = height / width;
-  var slider = document.getElementById("slider");
-  var slider2 = document.getElementById("slider2");
+  var scoreText = createText("score", "Score: 0");
+  var slider1 = createSliders("1");
+  var targetX = createSliders("targetX", 0);
+  var targetY = createSliders("targetY", 0);
+  var targetZ = createSliders("targetZ");
+  var eyeX = createSliders("eyeX", 180);
+  var eyeY = createSliders("eyeY", 128);
+  var eyeZ = createSliders("eyeZ", -124);
+  var upX = createSliders("upX", 0);
+  var upY = createSliders("upY", 1);
+  var upZ = createSliders("upZ", 0);
+  var worldX = createSliders("worldX");
+  var worldY = createSliders("worldY", -25);
+  function createSliders(id, defaultVal = 0, min2 = -200, max2 = 200) {
+    let slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = min2.toString();
+    slider.max = max2.toString();
+    slider.value = defaultVal.toString();
+    slider.id = id;
+    slider.onchange = () => {
+      console.log(`slider ${id} changed to ${slider.value}`);
+    };
+    let sliderLabel = document.createElement("label");
+    sliderLabel.htmlFor = id;
+    sliderLabel.innerText = id;
+    let sliderDiv = document.createElement("div");
+    sliderDiv.appendChild(sliderLabel);
+    sliderDiv.appendChild(slider);
+    document.body.appendChild(sliderDiv);
+    return slider;
+  }
+  function createText(id, text) {
+    let textDiv = document.createElement("div");
+    textDiv.id = id;
+    textDiv.innerText = text;
+    document.body.appendChild(textDiv);
+    return textDiv;
+  }
 
   // Scripts/Drawer.ts
   function lineToTx(loc, Tx, context) {
@@ -1707,31 +1744,6 @@
     mainCtx.stroke();
   }
 
-  // Scripts/Object3Ds/OrthographicProjection.ts
-  var OrthographicProjection = class {
-    constructor(left, right, bottom, top, near, far) {
-      this.left = left;
-      this.right = right;
-      this.bottom = bottom;
-      this.top = top;
-      this.near = near;
-      this.far = far;
-    }
-    static create(size, near = -1, far = 1) {
-      return new OrthographicProjection(-size, size, -size, size, near, far);
-    }
-    get transformMatrix() {
-      let m = mat4_exports.create();
-      mat4_exports.ortho(m, this.left, this.right, this.bottom, this.top, this.near, this.far);
-      return m;
-    }
-    transformTo(t) {
-      let m = this.transformMatrix;
-      mat4_exports.multiply(m, t, m);
-      return m;
-    }
-  };
-
   // Scripts/Object3Ds/Camera3D.ts
   var Camera3D = class {
     constructor() {
@@ -1771,11 +1783,9 @@
       return true;
     }
     get direction() {
-      return vec3_exports.fromValues(
-        this.eye[0] - this.target[0],
-        this.eye[1] - this.target[1],
-        this.eye[2] - this.target[2]
-      );
+      let raw = vec3_exports.create();
+      vec3_exports.sub(raw, this.target, this.eye);
+      return vec3_exports.normalize(raw, raw);
     }
     get position() {
       return this.eye;
@@ -1784,7 +1794,7 @@
 
   // Scripts/Object3Ds/World3D.ts
   var World3D = class {
-    constructor(scale3 = 1e4) {
+    constructor(scale3 = 10) {
       this._transformMatrix = mat4_exports.create();
       this._scale = scale3;
       let m = mat4_exports.create();
@@ -1805,6 +1815,16 @@
       let v = vec3_exports.create();
       vec3_exports.transformMat4(v, p, m);
       return v;
+    }
+    move(x, y, z) {
+      let m = mat4_exports.create();
+      mat4_exports.translate(m, m, [x, y, z]);
+      return this.transformTo(m);
+    }
+    scale(val) {
+      let m = mat4_exports.create();
+      mat4_exports.scale(m, m, [val, val, val]);
+      return this.transformTo(m);
     }
   };
 
@@ -1896,7 +1916,6 @@
       let p2t = vec3_exports.transformMat4(vec3_exports.create(), p2, m);
       let p3t = vec3_exports.transformMat4(vec3_exports.create(), p3, m);
       let p4t = vec3_exports.transformMat4(vec3_exports.create(), p4, m);
-      let transformedPoints = [p1t, p2t, p3t, p4t];
       let normal1 = getNormal(p1t, p2t, p3t);
       let normal2 = getNormal(p1t, p3t, p4t);
       let normal3 = getNormal(p1t, p4t, p2t);
@@ -1908,6 +1927,7 @@
         let dot2 = vec3_exports.dot(normals[i], camera.direction);
         dots.push(dot2);
       }
+      frameLog(`dots: ${dots}`);
       let center1 = getCenter(triangles[0]);
       let center2 = getCenter(triangles[1]);
       let center3 = getCenter(triangles[2]);
@@ -1915,7 +1935,7 @@
       let centers = [center1, center2, center3, center4];
       let distances = centers.map((center) => vec3_exports.distance(center, camera.position));
       function setColor(dotVal) {
-        let color = Math.abs(dotVal) * 10;
+        let color = 255 - Math.abs(dotVal) * 125;
         if (color < 0)
           color = 0;
         if (color > 255)
@@ -1994,6 +2014,43 @@
   };
   var Random = _Random;
   Random.i = new _Random(new Date().getTime());
+  var random2 = new Random(0);
+
+  // Scripts/SmoothNumber.ts
+  var SmoothNumber = class {
+    constructor(value, decay = 0.5, needScale = true) {
+      this.needScale = needScale;
+      this._velocity = 0;
+      this.decay = 0.5;
+      this.scale = 10;
+      this.vScale = 10;
+      this.value = value;
+      this.decay = decay;
+    }
+    get velocity() {
+      return this._velocity / this.vScale;
+    }
+    set velocity(value) {
+      this._velocity = value * this.vScale;
+    }
+    moveTowards(target) {
+      this.velocity += target;
+    }
+    update() {
+      this._value += this.velocity;
+      this.velocity *= this.decay;
+      if (Math.abs(this._velocity) < 1e-6) {
+        this.velocity = 0;
+      }
+    }
+    get value() {
+      this.update();
+      return this._value / this.scale;
+    }
+    set value(value) {
+      this._value = value * this.scale;
+    }
+  };
 
   // Scripts/Object3Ds/Plane3D.ts
   var Plane3D = class {
@@ -2061,12 +2118,64 @@
     }
   };
 
-  // Scripts/Object3Ds/MazeCell.ts
-  var MazeCell = class extends Plane3D {
+  // Scripts/point.ts
+  var Point2D = class {
+    constructor(x, y) {
+      this.arr = [x, y];
+    }
+    get x() {
+      return this.arr[0];
+    }
+    set x(value) {
+      this.arr[0] = value;
+    }
+    get y() {
+      return this.arr[1];
+    }
+    set y(value) {
+      this.arr[1] = value;
+    }
+  };
+
+  // Scripts/Object3Ds/GridCell.ts
+  var GridCell = class extends Plane3D {
     constructor() {
       super(...arguments);
       this._visited = false;
-      this._opens = [true, true, false, true];
+      this._hasWall = [true, true, true, true];
+    }
+    get pos() {
+      return new Point2D(this.x, this.y);
+    }
+    get row() {
+      return this.y;
+    }
+    get col() {
+      return this.x;
+    }
+    get right() {
+      return !this._hasWall[0];
+    }
+    set right(value) {
+      this._hasWall[0] = value;
+    }
+    get top() {
+      return this._hasWall[1];
+    }
+    set top(value) {
+      this._hasWall[1] = value;
+    }
+    get left() {
+      return this._hasWall[2];
+    }
+    set left(value) {
+      this._hasWall[2] = value;
+    }
+    get bottom() {
+      return this._hasWall[3];
+    }
+    set bottom(value) {
+      this._hasWall[3] = value;
     }
     set visited(value) {
       this._visited = value;
@@ -2076,13 +2185,26 @@
         this.fillColor = "rgba(255, 255, 255, 1)";
       }
     }
-    static createFrom(pos, size) {
-      return new MazeCell(
+    set playerInCell(value) {
+      if (value) {
+        this.fillColor = "rgba(200, 100, 0,1)";
+      } else {
+        this.visited = this.visited;
+      }
+    }
+    static createFromXY(x, y) {
+      let relaSize = 0.3;
+      let pos = vec3_exports.fromValues(x / 2 * relaSize, 0, y / 2 * relaSize);
+      let size = vec3_exports.fromValues(relaSize, relaSize, relaSize);
+      let re = new GridCell(
         vec3_exports.fromValues(pos[0], pos[1], pos[2]),
         vec3_exports.fromValues(pos[0] + size[0], pos[1], pos[2]),
         vec3_exports.fromValues(pos[0] + size[0], pos[1], pos[2] + size[2]),
         vec3_exports.fromValues(pos[0], pos[1], pos[2] + size[2])
       );
+      re.x = x;
+      re.y = y;
+      return re;
     }
     get visited() {
       return this._visited;
@@ -2093,18 +2215,17 @@
       let oldFill = mainCtx.fillStyle;
       let oldLineWidth = mainCtx.lineWidth;
       mainCtx.strokeStyle = "black";
-      mainCtx.lineWidth = 2;
-      if (!this._opens[0]) {
+      if (this.top) {
+        drawLine3D(this._points[3], this._points[0], this._currTransform);
+      }
+      if (this.left) {
         drawLine3D(this._points[0], this._points[1], this._currTransform);
       }
-      if (!this._opens[1]) {
-        drawLine3D(this._points[1], this._points[2], this._currTransform);
-      }
-      if (!this._opens[2]) {
+      if (this.bottom) {
         drawLine3D(this._points[2], this._points[3], this._currTransform);
       }
-      if (!this._opens[3]) {
-        drawLine3D(this._points[3], this._points[0], this._currTransform);
+      if (this.right) {
+        drawLine3D(this._points[1], this._points[2], this._currTransform);
       }
       mainCtx.strokeStyle = oldStroke;
       mainCtx.fillStyle = oldFill;
@@ -2112,98 +2233,426 @@
     }
   };
 
-  // Scripts/Object3Ds/Maze3D.ts
-  var Maze3D = class {
-    constructor(width2, height2) {
+  // Scripts/Object3Ds/Grid3D.ts
+  var Grid3D = class {
+    constructor(row, col) {
       this._visible = true;
-      this._planes = [];
-      this._width = width2;
-      this._height = height2;
-      for (let i = 0; i < width2; i++) {
-        for (let j = 0; j < height2; j++) {
-          this._planes.push(MazeCell.createFrom(vec3_exports.fromValues(i / 2, 0, j / 2), vec3_exports.fromValues(1, 0, 1)));
-        }
-      }
-      this.getXY(3, 3).visited = true;
-    }
-    getXY(x, y) {
-      return this._planes[y * this._width + x];
-    }
-    generateMaze() {
-      let stack = [];
-      let current = this.getXY(0, 0);
-      current.visited = true;
-      stack.push(current);
-      while (stack.length > 0) {
-        let neighbors = this.getNeighbors(current);
-        if (neighbors.length > 0) {
-          let next = neighbors[Math.floor(Math.random() * neighbors.length)];
-          this.removeWall(current, next);
-          next.visited = true;
-          stack.push(next);
-          current = next;
-        } else {
-          current = stack.pop();
+      this.cells = [];
+      this.row = row;
+      this.col = col;
+      for (let i = 0; i < row; i++) {
+        this.cells.push([]);
+        for (let j = 0; j < col; j++) {
+          this.cells[i].push(GridCell.createFromXY(i, j));
         }
       }
     }
     render(camera) {
-      for (let plane of this._planes) {
-        plane.render(camera);
+      for (let i = 0; i < this.cells.length; i++) {
+        for (let j = 0; j < this.cells[i].length; j++) {
+          this.cells[i][j].render(camera);
+        }
       }
     }
     set rotation(value) {
-      for (let plane of this._planes) {
-        plane.rotation = value;
+      for (let i = 0; i < this.cells.length; i++) {
+        for (let j = 0; j < this.cells[i].length; j++) {
+          this.cells[i][j].rotation = value;
+        }
       }
     }
     setWorld(world) {
-      for (let plane of this._planes) {
-        plane.setWorld(world);
+      for (let i = 0; i < this.cells.length; i++) {
+        for (let j = 0; j < this.cells[i].length; j++) {
+          this.cells[i][j].setWorld(world);
+        }
       }
     }
     get visible() {
       return this._visible;
     }
+    markVisited(pos) {
+      this.cells[pos.y][pos.x].visited = true;
+    }
+    unvisit() {
+      for (let i = 0; i < this.row; i++) {
+        for (let j = 0; j < this.col; j++) {
+          this.cells[i][j].visited = false;
+        }
+      }
+    }
+    openDoors() {
+      this.startCell.top = false;
+      this.startCell.visited = true;
+      this.endCell.bottom = false;
+    }
+    getCellNeighbors(cell) {
+      let neighbors = [];
+      if (cell.row > 0) {
+        neighbors.push(this.cells[cell.row - 1][cell.col]);
+      }
+      if (cell.row < this.row - 1) {
+        neighbors.push(this.cells[cell.row + 1][cell.col]);
+      }
+      if (cell.col > 0) {
+        neighbors.push(this.cells[cell.row][cell.col - 1]);
+      }
+      if (cell.col < this.col - 1) {
+        neighbors.push(this.cells[cell.row][cell.col + 1]);
+      }
+      return neighbors;
+    }
+    removeWalls(a, b) {
+      let x = a.col - b.col;
+      if (x === 1) {
+        a.left = false;
+        b.right = false;
+      } else if (x === -1) {
+        a.right = false;
+        b.left = false;
+      }
+      let y = a.row - b.row;
+      if (y === 1) {
+        a.top = false;
+        b.bottom = false;
+      } else if (y === -1) {
+        a.bottom = false;
+        b.top = false;
+      }
+    }
+    setPixel(x, y, color) {
+      let cell = this.cells[y][x];
+      cell.fillColor = color;
+    }
+  };
+
+  // Scripts/Object3Ds/PerspectiveProjection.ts
+  var PerspectiveProjection = class {
+    constructor(fov, aspect, near, far) {
+      this.fov = fov;
+      this.aspect = aspect;
+      this.near = near;
+      this.far = far;
+    }
+    get transformMatrix() {
+      let m = mat4_exports.create();
+      mat4_exports.perspective(m, this.fov, this.aspect, this.near, this.far);
+      return m;
+    }
+    transformTo(t) {
+      let m = this.transformMatrix;
+      mat4_exports.multiply(m, t, m);
+      return m;
+    }
+  };
+
+  // Scripts/GameGrid.ts
+  var GameGrid = class {
+    constructor(rows2, cols2, pixelGrid) {
+      this.rows = rows2;
+      this.cols = cols2;
+      this._pixels = [];
+      this.zones = [];
+      this.coins = [];
+      this.updateCount = 0;
+      this.turnNumber = 100;
+      for (let y = 0; y < rows2; y++) {
+        this._pixels[y] = [];
+        for (let x = 0; x < cols2; x++) {
+          this._pixels[y][x] = "white";
+        }
+      }
+      this.player = new Player(Math.floor(cols2 / 2), Math.floor(rows2 / 2));
+      this.pixelGrid = pixelGrid;
+    }
+    onGameEnd() {
+    }
+    movePlayer(x, y) {
+      if (this.player.x + x >= 0 && this.player.x + x < this.cols && this.player.y + y >= 0 && this.player.y + y < this.rows) {
+        this.player.x += x;
+        this.player.y += y;
+      }
+    }
+    clearPixels() {
+      for (let y = 0; y < this.rows; y++) {
+        for (let x = 0; x < this.cols; x++) {
+          this._pixels[y][x] = "white";
+        }
+      }
+    }
+    updatePixels() {
+      for (let y = 0; y < this.rows; y++) {
+        for (let x = 0; x < this.cols; x++) {
+          this.pixelGrid.setPixel(x, y, this._pixels[y][x]);
+        }
+      }
+    }
+    drawChildren() {
+      this.clearPixels();
+      for (let i = 0; i < this.zones.length; i++) {
+        this.drawZone(this.zones[i]);
+      }
+      for (let i = 0; i < this.coins.length; i++) {
+        this.drawPixel(this.coins[i].x, this.coins[i].y, this.coins[i].color);
+      }
+      this.drawPixel(this.player.x, this.player.y, this.player.color);
+      this.updatePixels();
+    }
+    drawZone(zone) {
+      for (let i = zone.x; i < zone.x + zone.w; i++) {
+        for (let j = zone.y; j < zone.y + zone.h; j++) {
+          this._pixels[j][i] = zone.color;
+        }
+      }
+    }
+    drawPixel(x, y, color) {
+      this._pixels[y][x] = color;
+    }
+    updateChildren() {
+      this.player.update();
+      for (let i = 0; i < this.zones.length; i++) {
+        this.zones[i].update();
+      }
+      for (let i = 0; i < this.coins.length; i++) {
+        this.coins[i].update();
+      }
+    }
+    updateLogic() {
+      for (let i = 0; i < this.zones.length; i++) {
+        let currZone = this.zones[i];
+        if (currZone.inRange(this.player)) {
+          this.onGameEnd();
+        }
+        if (currZone.ended) {
+          this.zones.splice(i, 1);
+          i--;
+        }
+      }
+      for (let i = 0; i < this.coins.length; i++) {
+        let currCoin = this.coins[i];
+        if (currCoin.inRange(this.player)) {
+          this.player.addCoin();
+          currCoin.collect();
+        }
+        if (!currCoin.activated) {
+          this.coins.splice(i, 1);
+          i--;
+        }
+      }
+    }
+    update() {
+      this.updateChildren();
+      this.updateLogic();
+      this.drawChildren();
+      if (this.updateCount % this.turnNumber == 0) {
+        this.zones.push(DangerZone.createRandom(this.cols, this.rows));
+      }
+      if (this.updateCount % 300 == 0) {
+        this.coins.push(Coin.createRandom(this.cols, this.rows));
+      }
+      this.updateCount++;
+    }
+    getCell(x, y) {
+      return this._pixels[y][x];
+    }
+  };
+  var Coin = class {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.vanishTime = 100;
+      this.updateCount = 0;
+      this.activated = true;
+      this._blinkState = false;
+      this.x = x;
+      this.y = y;
+    }
+    static createRandom(cols2, rows2) {
+      let x = Math.floor(Math.random() * cols2);
+      let y = Math.floor(Math.random() * rows2);
+      return new Coin(x, y);
+    }
+    collect() {
+      this.activated = false;
+    }
+    update() {
+      if (!this.activated) {
+        return;
+      }
+      if (this.updateCount > this.vanishTime) {
+        this.activated = false;
+      }
+      if (this.updateCount % 30 == 0) {
+        this._blinkState = !this._blinkState;
+      }
+      this.updateCount++;
+    }
+    get color() {
+      if (this._blinkState) {
+        return `#FFD700`;
+      }
+      return "orange";
+    }
+    inRange(player) {
+      return this.activated && this.x == player.x && this.y == player.y;
+    }
+  };
+  var Zone = class {
+    constructor(x, y, w, h) {
+      this.x = x;
+      this.y = y;
+      this.w = w;
+      this.h = h;
+      this.updateCount = 0;
+    }
+    get color() {
+      if (this.activated) {
+        return "red";
+      }
+      return `rgba(255, 100, 100, ${this.updateCount / 100})`;
+    }
+    update() {
+      this.updateCount++;
+    }
+    get activated() {
+      return true;
+    }
+    get ended() {
+      return true;
+    }
+    inRange(player) {
+      if (this.activated) {
+        return player.x >= this.x && player.x < this.x + this.w && player.y >= this.y && player.y < this.y + this.h;
+      }
+      return false;
+    }
+  };
+  var DangerZone = class extends Zone {
+    constructor() {
+      super(...arguments);
+      this.damage = 1;
+    }
+    static createRandom(cols2, rows2) {
+      let x = Math.floor(Math.random() * cols2);
+      let y = Math.floor(Math.random() * rows2);
+      let w = Math.floor(Math.random() * 10);
+      if (w > cols2 - x) {
+        w = cols2 - x;
+      }
+      let h = Math.floor(Math.random() * 10);
+      if (h > rows2 - y) {
+        h = rows2 - y;
+      }
+      return new DangerZone(x, y, w, h);
+    }
+    get activated() {
+      return this.updateCount > 100;
+    }
+    get ended() {
+      return this.updateCount > 200;
+    }
+  };
+  var Player = class {
+    constructor(defaultX, defaultY) {
+      this.coins = 0;
+      this.x = defaultX;
+      this.y = defaultY;
+      this.defaultX = defaultX;
+      this.defaultY = defaultY;
+    }
+    addCoin() {
+      this.coins++;
+      scoreText.innerText = `Score: ${this.coins}`;
+    }
+    get color() {
+      return "green";
+    }
+    update() {
+    }
+    kill() {
+      this.x = this.defaultX;
+      this.y = this.defaultY;
+    }
+    takeDamage(damage) {
+      this.kill();
+    }
   };
 
   // Scripts/Events.ts
   var frame = 0;
-  var wheelOffset = 100;
-  function log(...args) {
-    if (frame % 120 == 0)
+  var colorFrame = 0;
+  var wheelOffset = new SmoothNumber(1e-3, 0.96);
+  var playingDeadAnimation = false;
+  var deadAnimation = 0;
+  var deadAnimationDuration = 60;
+  function frameLog(...args) {
+    if (frame % 120 == 1)
       console.log(...args);
+  }
+  var rows = 11;
+  var cols = 11;
+  var grid = new Grid3D(rows, cols);
+  var gameGrid = getGame();
+  function getGame() {
+    let game2 = new GameGrid(rows, cols, grid);
+    game2.onGameEnd = onGameEnd;
+    return game2;
   }
   function frameUpdate() {
     frame++;
-    let background = `hsl(${frame / 5 % 360}, 20%, 50%)`;
+    colorFrame++;
+    gameGrid.update();
+    let background = `hsl(${colorFrame / 10 % 360}, 50%, 50%)`;
+    if (playingDeadAnimation) {
+      let saturation = 150 - Math.min(100, deadAnimation / deadAnimationDuration * 100);
+      background = `hsl(${0 % 360}, ${saturation}%, 50%)`;
+      deadAnimation++;
+      if (deadAnimation > deadAnimationDuration) {
+        playingDeadAnimation = false;
+        deadAnimation = 0;
+        colorFrame = 0;
+      }
+    }
     drawBackground(background);
-    let projection = OrthographicProjection.create(wheelOffset);
+    frameLog(grid.toString());
+    let projection = new PerspectiveProjection(wheelOffset.value, 1, 100, 1e7);
     let camera = new Camera3D();
     let world = new World3D();
-    let slider2Val = slider2.valueAsNumber;
-    log("slider2Val", slider2Val);
-    camera.setEye([30, slider2Val, 50]);
+    camera.setEye([eyeX.valueAsNumber, eyeY.valueAsNumber, eyeZ.valueAsNumber]);
+    camera.setTarget([targetX.valueAsNumber, targetY.valueAsNumber, targetZ.valueAsNumber]);
+    camera.setUp([upX.valueAsNumber, upY.valueAsNumber, upZ.valueAsNumber]);
+    world.move(worldX.valueAsNumber, 0, worldY.valueAsNumber);
+    world._scale = wheelOffset.value;
     let projectionTransform = projection.transformTo(viewport);
     let cameraTransform = camera.transformTo(projectionTransform);
     let worldTransform = world.transformTo(cameraTransform);
-    let random2 = Random.instance;
-    random2.setSeed(0);
+    let random3 = Random.instance;
+    random3.setSeed(0);
     function randomVal() {
-      return random2.nextFloat() * 2 - 1;
+      return random3.nextFloat() * 2 - 1;
     }
-    let pos = slider.valueAsNumber / 100 * 2 - 1;
+    let pos = slider1.valueAsNumber / 100 * 2 - 1;
+    function getRandPrism() {
+      let ctlIndex = random3.nextInt(4);
+      if (ctlIndex == 0) {
+        return TriangularPrism.createRegularPrism([pos, randomVal(), randomVal()], random3.nextInt(3) + 1);
+      }
+      if (ctlIndex == 1) {
+        return TriangularPrism.createRegularPrism([randomVal(), pos, randomVal()], random3.nextInt(3) + 1);
+      }
+      if (ctlIndex == 2) {
+        return TriangularPrism.createRegularPrism([randomVal(), randomVal(), pos], random3.nextInt(3) + 1);
+      }
+      if (ctlIndex == 3) {
+        return TriangularPrism.createRegularPrism([randomVal(), randomVal(), randomVal()], random3.nextInt(3) + 1);
+      }
+    }
     let objects = [
-      TriangularPrism.createRegularPrism([pos, randomVal(), randomVal()], random2.nextInt(3) + 1),
-      TriangularPrism.createRegularPrism([pos, pos, randomVal()], random2.nextInt(3) + 1),
-      TriangularPrism.createRegularPrism([pos, randomVal(), pos], random2.nextInt(3) + 1),
-      TriangularPrism.createRegularPrism([randomVal(), randomVal(), pos], random2.nextInt(3) + 1),
-      TriangularPrism.createRegularPrism([pos, randomVal(), randomVal()], random2.nextInt(3) + 1),
-      Plane3D.createFrom([0, 0, 0], [1, 0, 1]),
-      Plane3D.createFrom([0.5, 0, 0], [1, 0, 1]),
-      Plane3D.createFrom([-0.5, 0, 0], [1, 0, 1]),
-      Plane3D.createFrom([0, 0, 0.5], [1, 0, 1]),
-      new Maze3D(10, 10)
+      getRandPrism(),
+      getRandPrism(),
+      getRandPrism(),
+      getRandPrism(),
+      grid
     ];
     for (let i = 0; i < objects.length; i++) {
       let object = objects[i];
@@ -2211,17 +2660,39 @@
       object.rotation += frame / 100 + i;
       object.render(camera);
     }
-    log(`projectionTransform: 
+    mainCtx.lineWidth = 3e-4 / wheelOffset.value;
+    frameLog(`projectionTransform: 
 ${mat4ToString(projectionTransform)}`);
-    log(`cameraTransform: 
+    frameLog(`cameraTransform: 
 ${mat4ToString(cameraTransform)}`);
-    log(`worldTransform: 
+    frameLog(`worldTransform: 
 ${mat4ToString(worldTransform)}`);
   }
   function onWheel(e) {
     console.log("onWheel");
     console.log(e);
-    wheelOffset += e.deltaY / 10;
+    wheelOffset.moveTowards(e.deltaY / 2e6);
+  }
+  function onKeyDow(e) {
+    console.log("onKeyDown");
+    console.log(e);
+    if (e.key == "ArrowUp" || e.key == "w") {
+      gameGrid.movePlayer(0, -1);
+    }
+    if (e.key == "ArrowDown" || e.key == "s") {
+      gameGrid.movePlayer(0, 1);
+    }
+    if (e.key == "ArrowLeft" || e.key == "a") {
+      gameGrid.movePlayer(1, 0);
+    }
+    if (e.key == "ArrowRight" || e.key == "d") {
+      gameGrid.movePlayer(-1, 0);
+    }
+  }
+  function onGameEnd() {
+    console.log("onGameEnd");
+    playingDeadAnimation = true;
+    gameGrid = getGame();
   }
 
   // Scripts/Init.ts
@@ -2233,6 +2704,9 @@ ${mat4ToString(worldTransform)}`);
     runFrameUpdate();
     mainCanvas.onwheel = (e) => {
       onWheel(e);
+    };
+    window.onkeydown = (e) => {
+      onKeyDow(e);
     };
   }
   function initAll() {

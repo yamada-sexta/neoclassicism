@@ -1,4 +1,5 @@
 
+
 import {mat4, vec3} from "gl-matrix";
 import {drawLine3D, drawTriangle3D, lineToTx, moveToTx} from "../Drawer";
 import {mainCtx} from "../Consts";
@@ -7,6 +8,7 @@ import {Camera3D} from "./Camera3D";
 import {World3D} from "./World3D";
 import {getCenter, getNormal} from "../Math/Math3D";
 import {mat4ToString, vec3ToString} from "../Debug";
+import {frameLog} from "../Events";
 
 export class TriangularPrism implements IVisible3D {
     // transformMatrix: mat4 = mat4.create();
@@ -89,14 +91,12 @@ export class TriangularPrism implements IVisible3D {
         mat4.fromTranslation(m, this.center);
         mat4.rotate(m, m, this.rotation, this.rotationAxis)
         mat4.scale(m, m, [this.scale, this.scale, this.scale]);
-
         let t = this._world.transformMatrix;
         mat4.multiply(m, t, m);
         let p1t = vec3.transformMat4(vec3.create(), p1, m);
         let p2t = vec3.transformMat4(vec3.create(), p2, m);
         let p3t = vec3.transformMat4(vec3.create(), p3, m);
         let p4t = vec3.transformMat4(vec3.create(), p4, m);
-        let transformedPoints = [p1t, p2t, p3t, p4t];
 
         let normal1 = getNormal(p1t, p2t, p3t);
         let normal2 = getNormal(p1t, p3t, p4t);
@@ -108,11 +108,11 @@ export class TriangularPrism implements IVisible3D {
 
         let dots = [];
         for (let i = 0; i < normals.length; i++) {
-
             let dot = vec3.dot(normals[i], camera.direction);
             dots.push(dot);
         }
 
+        frameLog(`dots: ${dots}`);
 
         let center1 = getCenter(triangles[0]);
         let center2 = getCenter(triangles[1]);
@@ -122,7 +122,7 @@ export class TriangularPrism implements IVisible3D {
         let distances = centers.map(center => vec3.distance(center, camera.position));
 
         function setColor(dotVal: number) {
-            let color =  Math.abs(dotVal) * 10;
+            let color = 255 - Math.abs(dotVal)   *125;
             if (color < 0) color = 0;
             if (color > 255) color = 255;
             mainCtx.fillStyle = `rgb(${color}, ${color}, ${color})`;

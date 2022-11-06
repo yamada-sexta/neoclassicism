@@ -49,11 +49,9 @@ export class Camera3D {
     }
 
     get direction(): vec3 {
-        return vec3.fromValues(
-            this.eye[0] - this.target[0],
-            this.eye[1] - this.target[1],
-            this.eye[2] - this.target[2]
-        )
+        let raw = vec3.create()
+        vec3.sub(raw, this.target, this.eye)
+        return vec3.normalize(raw, raw)
     }
 
     get position(): vec3 {

@@ -32,3 +32,5 @@ export class Random {
         return this.next();
     }
 }
+
+export let random = new Random(0);

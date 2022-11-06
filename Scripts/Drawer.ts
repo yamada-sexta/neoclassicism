@@ -93,3 +93,16 @@ export function drawPlane3D(p1: vec3, p2: vec3, p3: vec3, p4: vec3, transformMat
     mainCtx.fill();
     mainCtx.stroke();
 }
+
+export function drawLongLine3D(points: vec3[], transformMatrix: mat4) {
+    mainCtx.beginPath();
+    moveToTx(points[0], transformMatrix, mainCtx);
+    for (let i = 1; i < points.length; i++) {
+        lineToTx(points[i], transformMatrix, mainCtx);
+    }
+    mainCtx.stroke();
+}
+
+export function getHermitCurve3D(control1:vec3, control2:vec3, ):vec3[]{
+        
+}
