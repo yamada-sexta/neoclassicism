@@ -1,11 +1,11 @@
-import {Triangle3D} from "./Triangle3D";
+
 import {mat4, vec3} from "gl-matrix";
 import {drawLine3D, drawTriangle3D, lineToTx, moveToTx} from "../Drawer";
 import {mainCtx} from "../Consts";
 import IVisible3D from "./IVisible3D";
 import {Camera3D} from "./Camera3D";
 import {World3D} from "./World3D";
-import {getNormal} from "../Math/Math3D";
+import {getCenter, getNormal} from "../Math/Math3D";
 import {mat4ToString, vec3ToString} from "../Debug";
 
 export class TriangularPrism implements IVisible3D {
@@ -13,12 +13,12 @@ export class TriangularPrism implements IVisible3D {
 
     points: vec3[] = [];
 
-    scale: number = 100;
+    scale: number = 1;
 
     _world: World3D;
 
     rotation: number = 0;
-    rotationAxis: vec3 = vec3.fromValues(0,1,0);
+    rotationAxis: vec3 = vec3.fromValues(0, 1, 0);
 
 
     constructor(p1: vec3, p2: vec3, p3: vec3, p4: vec3) {
@@ -54,9 +54,9 @@ export class TriangularPrism implements IVisible3D {
         let sin = size * Math.sqrt(3) / 2;
         let cos = size / 2;
 
-        let p2 = vec3.fromValues(p1[0] + sin, p1[1], p1[2]+sin);
-        let p3 = vec3.fromValues(p1[0] -cos, p1[1] + sin, p1[2] + sin);
-        let p4 = vec3.fromValues(p1[0] -cos, p1[1] - sin, p1[2] + sin);
+        let p2 = vec3.fromValues(p1[0] + sin, p1[1], p1[2] + sin);
+        let p3 = vec3.fromValues(p1[0] - cos, p1[1] + sin, p1[2] + sin);
+        let p4 = vec3.fromValues(p1[0] - cos, p1[1] - sin, p1[2] + sin);
 
         return new TriangularPrism(p1, p2, p3, p4);
     }
@@ -96,33 +96,55 @@ export class TriangularPrism implements IVisible3D {
         let p2t = vec3.transformMat4(vec3.create(), p2, m);
         let p3t = vec3.transformMat4(vec3.create(), p3, m);
         let p4t = vec3.transformMat4(vec3.create(), p4, m);
+        let transformedPoints = [p1t, p2t, p3t, p4t];
 
         let normal1 = getNormal(p1t, p2t, p3t);
         let normal2 = getNormal(p1t, p3t, p4t);
         let normal3 = getNormal(p1t, p4t, p2t);
         let normal4 = getNormal(p2t, p4t, p3t);
+        let normals = [normal1, normal2, normal3, normal4];
+        let triangles = [[p1, p2, p3], [p1, p3, p4], [p1, p4, p2], [p2, p4, p3]];
 
-        let dot1 = vec3.dot(normal1, camera.direction);
-        let dot2 = vec3.dot(normal2, camera.direction);
-        let dot3 = vec3.dot(normal3, camera.direction);
-        let dot4 = vec3.dot(normal4, camera.direction);
+
+        let dots = [];
+        for (let i = 0; i < normals.length; i++) {
+
+            let dot = vec3.dot(normals[i], camera.direction);
+            dots.push(dot);
+        }
+
+
+        let center1 = getCenter(triangles[0]);
+        let center2 = getCenter(triangles[1]);
+        let center3 = getCenter(triangles[2]);
+        let center4 = getCenter(triangles[3]);
+        let centers = [center1, center2, center3, center4];
+        let distances = centers.map(center => vec3.distance(center, camera.position));
 
         function setColor(dotVal: number) {
-            let color = 125 + dotVal * 3;
+            let color =  Math.abs(dotVal) * 10;
             if (color < 0) color = 0;
             if (color > 255) color = 255;
-
             mainCtx.fillStyle = `rgb(${color}, ${color}, ${color})`;
         }
 
-        setColor(dot1);
-        drawTriangle3D(p1, p2, p3, m);
-        setColor(dot2);
-        drawTriangle3D(p1, p2, p4, m);
-        setColor(dot3);
-        drawTriangle3D(p1, p3, p4, m);
-        setColor(dot4);
-        drawTriangle3D(p2, p3, p4, m);
+        let sorted = [];
+        for (let i = 0; i < 4; i++) {
+            sorted.push({
+                index: i,
+                dot: dots[i],
+                distance: distances[i],
+            });
+        }
+        sorted.sort((a: any, b: any) => {
+            return -(b.distance - a.distance ) as number;
+        });
+
+        for (let i = 0; i < 4; i++) {
+            setColor(sorted[i].dot);
+            let currTriangle = triangles[sorted[i].index];
+            drawTriangle3D(currTriangle[0], currTriangle[1], currTriangle[2], m);
+        }
     }
 
     get visible(): boolean {

@@ -8,9 +8,26 @@ export class Camera3D {
 
     constructor() {
         this.transformMatrix = mat4.create()
-        this.eye = vec3.fromValues(30, 40, 50)
+        this.eye = vec3.fromValues(0, 0, 0)
         this.target = vec3.fromValues(0, 0, 0)
         this.up = vec3.fromValues(0, 1, 0)
+        mat4.lookAt(this.transformMatrix, this.eye, this.target, this.up)
+    }
+
+    setEye(eye: vec3) {
+        this.eye = eye
+        this.updateTransformMatrix()
+    }
+    setTarget(target: vec3) {
+        this.target = target
+        this.updateTransformMatrix()
+    }
+    setUp(up: vec3) {
+        this.up = up
+        this.updateTransformMatrix()
+    }
+
+    updateTransformMatrix() {
         mat4.lookAt(this.transformMatrix, this.eye, this.target, this.up)
     }
 
@@ -37,6 +54,10 @@ export class Camera3D {
             this.eye[1] - this.target[1],
             this.eye[2] - this.target[2]
         )
+    }
+
+    get position(): vec3 {
+        return this.eye
     }
 
 }

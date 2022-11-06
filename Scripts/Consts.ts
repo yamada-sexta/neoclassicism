@@ -10,3 +10,4 @@ mainCanvas.width = width;
 export let aspectRatio = height / width;
 
 export let slider = document.getElementById("slider") as HTMLInputElement;
+export let slider2 = document.getElementById("slider2") as HTMLInputElement;

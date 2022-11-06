@@ -1,4 +1,4 @@
-import { vec3 } from "gl-matrix";
+import {vec3} from "gl-matrix";
 
 /**
  * Find the normal vector of a triangle.
@@ -15,4 +15,13 @@ export function getNormal(p1: vec3, p2: vec3, p3: vec3): vec3 {
     vec3.cross(normal, v1, v2);
     vec3.normalize(normal, normal);
     return normal;
+}
+
+export function getCenter(points: vec3[]): vec3 {
+    let center = vec3.create();
+    for (let i = 0; i < points.length; i++) {
+        vec3.add(center, center, points[i]);
+    }
+    vec3.scale(center, center, 1 / points.length);
+    return center;
 }

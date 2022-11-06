@@ -82,3 +82,14 @@ export function drawBackground(color: string = "white") {
     mainCtx.fillStyle = color;
     mainCtx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
 }
+
+export function drawPlane3D(p1: vec3, p2: vec3, p3: vec3, p4: vec3, transformMatrix: mat4) {
+    mainCtx.beginPath();
+    moveToTx(p1, transformMatrix, mainCtx);
+    lineToTx(p2, transformMatrix, mainCtx);
+    lineToTx(p3, transformMatrix, mainCtx);
+    lineToTx(p4, transformMatrix, mainCtx);
+    lineToTx(p1, transformMatrix, mainCtx);
+    mainCtx.fill();
+    mainCtx.stroke();
+}

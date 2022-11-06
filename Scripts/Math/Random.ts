@@ -20,8 +20,8 @@ export class Random {
         return x - Math.floor(x);
     }
 
-    nextInt(max: number) {
-        return Math.floor(this.next() * max);
+    nextInt(max: number, min: number = 0) {
+        return Math.floor(this.next() * max) + min;
     }
 
     nextIntRange(min: number, max: number) {

@@ -1664,6 +1664,7 @@
   mainCanvas.width = width;
   var aspectRatio = height / width;
   var slider = document.getElementById("slider");
+  var slider2 = document.getElementById("slider2");
 
   // Scripts/Drawer.ts
   function lineToTx(loc, Tx, context) {
@@ -1675,6 +1676,12 @@
     let res = vec3_exports.create();
     vec3_exports.transformMat4(res, loc, Tx);
     context.moveTo(res[0], res[1]);
+  }
+  function drawLine3D(start, end, transformMatrix) {
+    mainCtx.beginPath();
+    moveToTx(start, transformMatrix, mainCtx);
+    lineToTx(end, transformMatrix, mainCtx);
+    mainCtx.stroke();
   }
   function drawTriangle3D(p1, p2, p3, transformMatrix) {
     mainCtx.beginPath();
@@ -1688,6 +1695,16 @@
   function drawBackground(color = "white") {
     mainCtx.fillStyle = color;
     mainCtx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
+  }
+  function drawPlane3D(p1, p2, p3, p4, transformMatrix) {
+    mainCtx.beginPath();
+    moveToTx(p1, transformMatrix, mainCtx);
+    lineToTx(p2, transformMatrix, mainCtx);
+    lineToTx(p3, transformMatrix, mainCtx);
+    lineToTx(p4, transformMatrix, mainCtx);
+    lineToTx(p1, transformMatrix, mainCtx);
+    mainCtx.fill();
+    mainCtx.stroke();
   }
 
   // Scripts/Object3Ds/OrthographicProjection.ts
@@ -1724,9 +1741,24 @@
         mat4_exports.lookAt(this.transformMatrix, this.eye, this.target, this.up);
       };
       this.transformMatrix = mat4_exports.create();
-      this.eye = vec3_exports.fromValues(30, 40, 50);
+      this.eye = vec3_exports.fromValues(0, 0, 0);
       this.target = vec3_exports.fromValues(0, 0, 0);
       this.up = vec3_exports.fromValues(0, 1, 0);
+      mat4_exports.lookAt(this.transformMatrix, this.eye, this.target, this.up);
+    }
+    setEye(eye) {
+      this.eye = eye;
+      this.updateTransformMatrix();
+    }
+    setTarget(target) {
+      this.target = target;
+      this.updateTransformMatrix();
+    }
+    setUp(up) {
+      this.up = up;
+      this.updateTransformMatrix();
+    }
+    updateTransformMatrix() {
       mat4_exports.lookAt(this.transformMatrix, this.eye, this.target, this.up);
     }
     transformTo(t) {
@@ -1745,11 +1777,14 @@
         this.eye[2] - this.target[2]
       );
     }
+    get position() {
+      return this.eye;
+    }
   };
 
   // Scripts/Object3Ds/World3D.ts
   var World3D = class {
-    constructor(scale3 = 100) {
+    constructor(scale3 = 1e4) {
       this._transformMatrix = mat4_exports.create();
       this._scale = scale3;
       let m = mat4_exports.create();
@@ -1765,6 +1800,12 @@
       this._transformMatrix = m;
       return m;
     }
+    transformPoint(p) {
+      let m = this.transformMatrix;
+      let v = vec3_exports.create();
+      vec3_exports.transformMat4(v, p, m);
+      return v;
+    }
   };
 
   // Scripts/Math/Math3D.ts
@@ -1778,12 +1819,20 @@
     vec3_exports.normalize(normal, normal);
     return normal;
   }
+  function getCenter(points) {
+    let center = vec3_exports.create();
+    for (let i = 0; i < points.length; i++) {
+      vec3_exports.add(center, center, points[i]);
+    }
+    vec3_exports.scale(center, center, 1 / points.length);
+    return center;
+  }
 
   // Scripts/Object3Ds/TriangularPrism.ts
   var TriangularPrism = class {
     constructor(p1, p2, p3, p4) {
       this.points = [];
-      this.scale = 100;
+      this.scale = 1;
       this.rotation = 0;
       this.rotationAxis = vec3_exports.fromValues(0, 1, 0);
       this.points = [p1, p2, p3, p4];
@@ -1847,30 +1896,48 @@
       let p2t = vec3_exports.transformMat4(vec3_exports.create(), p2, m);
       let p3t = vec3_exports.transformMat4(vec3_exports.create(), p3, m);
       let p4t = vec3_exports.transformMat4(vec3_exports.create(), p4, m);
+      let transformedPoints = [p1t, p2t, p3t, p4t];
       let normal1 = getNormal(p1t, p2t, p3t);
       let normal2 = getNormal(p1t, p3t, p4t);
       let normal3 = getNormal(p1t, p4t, p2t);
       let normal4 = getNormal(p2t, p4t, p3t);
-      let dot1 = vec3_exports.dot(normal1, camera.direction);
-      let dot2 = vec3_exports.dot(normal2, camera.direction);
-      let dot3 = vec3_exports.dot(normal3, camera.direction);
-      let dot4 = vec3_exports.dot(normal4, camera.direction);
+      let normals = [normal1, normal2, normal3, normal4];
+      let triangles = [[p1, p2, p3], [p1, p3, p4], [p1, p4, p2], [p2, p4, p3]];
+      let dots = [];
+      for (let i = 0; i < normals.length; i++) {
+        let dot2 = vec3_exports.dot(normals[i], camera.direction);
+        dots.push(dot2);
+      }
+      let center1 = getCenter(triangles[0]);
+      let center2 = getCenter(triangles[1]);
+      let center3 = getCenter(triangles[2]);
+      let center4 = getCenter(triangles[3]);
+      let centers = [center1, center2, center3, center4];
+      let distances = centers.map((center) => vec3_exports.distance(center, camera.position));
       function setColor(dotVal) {
-        let color = 125 + dotVal * 3;
+        let color = Math.abs(dotVal) * 10;
         if (color < 0)
           color = 0;
         if (color > 255)
           color = 255;
         mainCtx.fillStyle = `rgb(${color}, ${color}, ${color})`;
       }
-      setColor(dot1);
-      drawTriangle3D(p1, p2, p3, m);
-      setColor(dot2);
-      drawTriangle3D(p1, p2, p4, m);
-      setColor(dot3);
-      drawTriangle3D(p1, p3, p4, m);
-      setColor(dot4);
-      drawTriangle3D(p2, p3, p4, m);
+      let sorted = [];
+      for (let i = 0; i < 4; i++) {
+        sorted.push({
+          index: i,
+          dot: dots[i],
+          distance: distances[i]
+        });
+      }
+      sorted.sort((a, b) => {
+        return -(b.distance - a.distance);
+      });
+      for (let i = 0; i < 4; i++) {
+        setColor(sorted[i].dot);
+        let currTriangle = triangles[sorted[i].index];
+        drawTriangle3D(currTriangle[0], currTriangle[1], currTriangle[2], m);
+      }
     }
     get visible() {
       return true;
@@ -1900,32 +1967,261 @@
     return s;
   }
 
+  // Scripts/Math/Random.ts
+  var _Random = class {
+    static get instance() {
+      return _Random.i;
+    }
+    setSeed(seed) {
+      this._seed = seed;
+    }
+    constructor(seed) {
+      this._seed = seed;
+    }
+    next() {
+      let x = Math.sin(this._seed++) * 1e4;
+      return x - Math.floor(x);
+    }
+    nextInt(max2, min2 = 0) {
+      return Math.floor(this.next() * max2) + min2;
+    }
+    nextIntRange(min2, max2) {
+      return min2 + this.nextInt(max2 - min2);
+    }
+    nextFloat() {
+      return this.next();
+    }
+  };
+  var Random = _Random;
+  Random.i = new _Random(new Date().getTime());
+
+  // Scripts/Object3Ds/Plane3D.ts
+  var Plane3D = class {
+    constructor(p1, p2, p3, p4) {
+      this._visible = true;
+      this._rotation = 0;
+      this._axis = vec3_exports.fromValues(0, 0, 0);
+      this._scale = 1;
+      this._currTransform = mat4_exports.create();
+      this.fillColor = "rgba(255, 255, 255, 1)";
+      this.strokeColor = "black";
+      this._points = [p1, p2, p3, p4];
+    }
+    get points() {
+      return this._points;
+    }
+    static createFrom(pos, size) {
+      return new Plane3D(
+        vec3_exports.fromValues(pos[0], pos[1], pos[2]),
+        vec3_exports.fromValues(pos[0] + size[0], pos[1], pos[2]),
+        vec3_exports.fromValues(pos[0] + size[0], pos[1], pos[2] + size[2]),
+        vec3_exports.fromValues(pos[0], pos[1], pos[2] + size[2])
+      );
+    }
+    setWorld(world) {
+      this._world = world;
+    }
+    get world() {
+      return this._world;
+    }
+    get center() {
+      return getCenter(this.points);
+    }
+    get rotation() {
+      return this._rotation;
+    }
+    set rotation(value) {
+      this._rotation = value;
+    }
+    get rotationAxis() {
+      return this._axis;
+    }
+    get scale() {
+      return this._scale;
+    }
+    render(camera) {
+      if (!this.visible)
+        return;
+      if (!this._world) {
+        throw new Error(`World is not set for ${this.constructor.name}`);
+      }
+      mainCtx.fillStyle = this.fillColor;
+      let m = mat4_exports.create();
+      mat4_exports.fromTranslation(m, this.center);
+      mat4_exports.rotate(m, m, this.rotation, this.rotationAxis);
+      mat4_exports.scale(m, m, [this.scale, this.scale, this.scale]);
+      let t = this._world.transformMatrix;
+      mat4_exports.multiply(m, t, m);
+      this._currTransform = m;
+      let ps = this.points;
+      drawPlane3D(ps[0], ps[1], ps[2], ps[3], m);
+    }
+    get visible() {
+      return this._visible;
+    }
+  };
+
+  // Scripts/Object3Ds/MazeCell.ts
+  var MazeCell = class extends Plane3D {
+    constructor() {
+      super(...arguments);
+      this._visited = false;
+      this._opens = [true, true, false, true];
+    }
+    set visited(value) {
+      this._visited = value;
+      if (value) {
+        this.fillColor = "rgba(100, 200, 0,1)";
+      } else {
+        this.fillColor = "rgba(255, 255, 255, 1)";
+      }
+    }
+    static createFrom(pos, size) {
+      return new MazeCell(
+        vec3_exports.fromValues(pos[0], pos[1], pos[2]),
+        vec3_exports.fromValues(pos[0] + size[0], pos[1], pos[2]),
+        vec3_exports.fromValues(pos[0] + size[0], pos[1], pos[2] + size[2]),
+        vec3_exports.fromValues(pos[0], pos[1], pos[2] + size[2])
+      );
+    }
+    get visited() {
+      return this._visited;
+    }
+    render(camera) {
+      super.render(camera);
+      let oldStroke = mainCtx.strokeStyle;
+      let oldFill = mainCtx.fillStyle;
+      let oldLineWidth = mainCtx.lineWidth;
+      mainCtx.strokeStyle = "black";
+      mainCtx.lineWidth = 2;
+      if (!this._opens[0]) {
+        drawLine3D(this._points[0], this._points[1], this._currTransform);
+      }
+      if (!this._opens[1]) {
+        drawLine3D(this._points[1], this._points[2], this._currTransform);
+      }
+      if (!this._opens[2]) {
+        drawLine3D(this._points[2], this._points[3], this._currTransform);
+      }
+      if (!this._opens[3]) {
+        drawLine3D(this._points[3], this._points[0], this._currTransform);
+      }
+      mainCtx.strokeStyle = oldStroke;
+      mainCtx.fillStyle = oldFill;
+      mainCtx.lineWidth = oldLineWidth;
+    }
+  };
+
+  // Scripts/Object3Ds/Maze3D.ts
+  var Maze3D = class {
+    constructor(width2, height2) {
+      this._visible = true;
+      this._planes = [];
+      this._width = width2;
+      this._height = height2;
+      for (let i = 0; i < width2; i++) {
+        for (let j = 0; j < height2; j++) {
+          this._planes.push(MazeCell.createFrom(vec3_exports.fromValues(i / 2, 0, j / 2), vec3_exports.fromValues(1, 0, 1)));
+        }
+      }
+      this.getXY(3, 3).visited = true;
+    }
+    getXY(x, y) {
+      return this._planes[y * this._width + x];
+    }
+    generateMaze() {
+      let stack = [];
+      let current = this.getXY(0, 0);
+      current.visited = true;
+      stack.push(current);
+      while (stack.length > 0) {
+        let neighbors = this.getNeighbors(current);
+        if (neighbors.length > 0) {
+          let next = neighbors[Math.floor(Math.random() * neighbors.length)];
+          this.removeWall(current, next);
+          next.visited = true;
+          stack.push(next);
+          current = next;
+        } else {
+          current = stack.pop();
+        }
+      }
+    }
+    render(camera) {
+      for (let plane of this._planes) {
+        plane.render(camera);
+      }
+    }
+    set rotation(value) {
+      for (let plane of this._planes) {
+        plane.rotation = value;
+      }
+    }
+    setWorld(world) {
+      for (let plane of this._planes) {
+        plane.setWorld(world);
+      }
+    }
+    get visible() {
+      return this._visible;
+    }
+  };
+
   // Scripts/Events.ts
   var frame = 0;
+  var wheelOffset = 100;
+  function log(...args) {
+    if (frame % 120 == 0)
+      console.log(...args);
+  }
   function frameUpdate() {
     frame++;
-    drawBackground("gray");
-    let projection = OrthographicProjection.create(100);
+    let background = `hsl(${frame / 5 % 360}, 20%, 50%)`;
+    drawBackground(background);
+    let projection = OrthographicProjection.create(wheelOffset);
     let camera = new Camera3D();
     let world = new World3D();
-    let LOG = frame % 120 == 1;
-    let pos = slider.valueAsNumber / 100;
-    let prism = TriangularPrism.createRegularPrism([pos, 0, 0], 1);
-    prism.rotation += frame / 100;
-    prism.setWorld(world);
+    let slider2Val = slider2.valueAsNumber;
+    log("slider2Val", slider2Val);
+    camera.setEye([30, slider2Val, 50]);
     let projectionTransform = projection.transformTo(viewport);
     let cameraTransform = camera.transformTo(projectionTransform);
     let worldTransform = world.transformTo(cameraTransform);
-    if (LOG)
-      console.log(`projectionTransform: 
+    let random2 = Random.instance;
+    random2.setSeed(0);
+    function randomVal() {
+      return random2.nextFloat() * 2 - 1;
+    }
+    let pos = slider.valueAsNumber / 100 * 2 - 1;
+    let objects = [
+      TriangularPrism.createRegularPrism([pos, randomVal(), randomVal()], random2.nextInt(3) + 1),
+      TriangularPrism.createRegularPrism([pos, pos, randomVal()], random2.nextInt(3) + 1),
+      TriangularPrism.createRegularPrism([pos, randomVal(), pos], random2.nextInt(3) + 1),
+      TriangularPrism.createRegularPrism([randomVal(), randomVal(), pos], random2.nextInt(3) + 1),
+      TriangularPrism.createRegularPrism([pos, randomVal(), randomVal()], random2.nextInt(3) + 1),
+      Plane3D.createFrom([0, 0, 0], [1, 0, 1]),
+      Plane3D.createFrom([0.5, 0, 0], [1, 0, 1]),
+      Plane3D.createFrom([-0.5, 0, 0], [1, 0, 1]),
+      Plane3D.createFrom([0, 0, 0.5], [1, 0, 1]),
+      new Maze3D(10, 10)
+    ];
+    for (let i = 0; i < objects.length; i++) {
+      let object = objects[i];
+      object.setWorld(world);
+      object.rotation += frame / 100 + i;
+      object.render(camera);
+    }
+    log(`projectionTransform: 
 ${mat4ToString(projectionTransform)}`);
-    if (LOG)
-      console.log(`cameraTransform: 
+    log(`cameraTransform: 
 ${mat4ToString(cameraTransform)}`);
-    if (LOG)
-      console.log(`worldTransform: 
+    log(`worldTransform: 
 ${mat4ToString(worldTransform)}`);
-    prism.render(camera);
+  }
+  function onWheel(e) {
+    console.log("onWheel");
+    console.log(e);
+    wheelOffset += e.deltaY / 10;
   }
 
   // Scripts/Init.ts
@@ -1933,8 +2229,14 @@ ${mat4ToString(worldTransform)}`);
     frameUpdate();
     window.requestAnimationFrame(runFrameUpdate);
   }
-  function initAll() {
+  function initEvents() {
     runFrameUpdate();
+    mainCanvas.onwheel = (e) => {
+      onWheel(e);
+    };
+  }
+  function initAll() {
+    initEvents();
   }
 
   // Scripts/Game.ts
