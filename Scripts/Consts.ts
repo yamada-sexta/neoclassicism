@@ -1,10 +1,12 @@
-export const canvas = document.getElementById("mainCanvas") as HTMLCanvasElement;
-export const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+export const mainCanvas = document.getElementById("mainCanvas") as HTMLCanvasElement;
+export const mainCtx = mainCanvas.getContext("2d") as CanvasRenderingContext2D;
 
-export const width = canvas.width;
-export const height = canvas.height;
+export let height = 500;
+export let width = 500;
 
-export const centerX = width / 2;
-export const centerY = height / 2;
+mainCanvas.height = height;
+mainCanvas.width = width;
 
-export const aspectRatio = width / height;
+export let aspectRatio = height / width;
+
+export let slider = document.getElementById("slider") as HTMLInputElement;

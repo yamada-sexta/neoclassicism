@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "esbuild watch": "esbuild --bundle --sourcemap --watch --outfile=index.js ./Scripts/index.js"
+    "esbuild watch": "esbuild --bundle --sourcemap --watch --outfile=index.js ./Scripts/Main.ts"
   },
   "repository": {
     "type": "git",
@@ -20,6 +20,10 @@
   "dependencies": {
     "@ffmpeg/core": "^0.11.0",
     "@ffmpeg/ffmpeg": "^0.11.6",
-    "esbuild": "^0.15.13"
+    "esbuild": "^0.15.13",
+    "gl-matrix": "^3.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.9"
   }
 }

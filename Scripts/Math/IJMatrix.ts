@@ -7,6 +7,11 @@ export class IJMatrix {
         return this.arr[0].length;
     }
 
+    setFromIJMatrix(other: IJMatrix) {
+        this.arr = other.arr;
+        return this;
+    }
+
     constructor(rows: number, cols: number) {
         this.arr = [];
         for (let i = 0; i < rows; i++) {
@@ -17,6 +22,8 @@ export class IJMatrix {
         }
     }
 
+
+
     /**
      * set the value of the matrix at row i and column j
      * @param i
@@ -25,6 +32,15 @@ export class IJMatrix {
      */
     setIJ(i: number, j: number, value: number) {
         this.arr[i][j] = value;
+        return this;
+    }
+
+    scaleIJ(i:number,j:number,scale:number){
+        this.arr[i][j] *= scale;
+        return this;
+    }
+    addIJ(i: number, j: number, value: number) {
+        this.arr[i][j] += value;
         return this;
     }
 
