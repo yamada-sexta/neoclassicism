@@ -2789,11 +2789,6 @@ ${mat4ToString(worldTransform)}`);
     isPlaying = false;
     startBtn.style.display = "block";
     startBtn.innerText = "Restart";
-    for (let i = 0; i < rows; i++) {
-      for (let j = 0; j < cols; j++) {
-        grid.setPixel(i, j, "white");
-      }
-    }
   }
   function onDrag(event, lastPos2, pos) {
     if (event.buttons === 4) {

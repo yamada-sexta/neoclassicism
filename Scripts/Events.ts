@@ -218,12 +218,6 @@ export function onGameEnd() {
 
     startBtn.style.display = "block";
     startBtn.innerText = "Restart";
-
-    for (let i =0;i<rows;i++) {
-        for (let j =0;j<cols;j++) {
-            grid.setPixel(i, j, "white");
-        }
-    }
 }
 
 export function onDrag(event: PointerEvent, lastPos: vec2, pos: vec2) {
