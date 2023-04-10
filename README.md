@@ -1,2 +1,2 @@
 # Neoclassicism
- Basic HTML 3D render
+A fake 3D renderer using HTML Canavs 2D.
