@@ -28,36 +28,6 @@ jobs:
       # Step 1: Checkout your repository code
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      # Step 2: Set up Node.js environment
-      # We recommend using a specific Node.js version, e.g., 20.x
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x' # You can change this to your project's Node.js version
-          cache: 'npm' # Caches npm dependencies
-
-      # Step 3: Cache Node.js modules
-      # This step checks if node_modules can be restored from cache,
-      # and saves them to cache if they are not found or changed.
-      - name: Cache Node.js modules
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm # Path to the npm cache directory
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }} # Cache key based on OS and package-lock.json
-          restore-keys: |
-            ${{ runner.os }}-node- # Fallback key
-
-      # Step 4: Install project dependencies
-      # 'npm ci' is recommended for CI/CD environments as it's faster and more reliable
-      - name: Install dependencies
-        run: npm ci
-
-      # Step 5: Build the project
-      # This command runs your project's build script, usually defined in package.json
-      - name: Build project
-        run: npm run build
-
       # Step 6: Set up GitHub Pages
       # This action configures the GitHub Pages environment
       - name: Set up Pages
